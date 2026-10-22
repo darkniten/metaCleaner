@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Photo Metadata Studio</title>
+    <meta
+      name="description"
+      content="Minimal, Premium, Modern Photo Metadata Studio — перегляд, редагування та очищення метаданих без сервера."
+    />
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- Браузерні бібліотеки (100% клієнтські, без Node.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  </head>
+  <body>
+    <div class="studio-app">
+      <!-- Затінення для мобільного меню (Backdrop) -->
+      <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+      <!-- Ліва панель навігації (Drawer на смартфонах) -->
+      <aside id="studioSidebar" class="studio-sidebar">
+        <div class="sidebar-header">
+          <div class="brand-logo">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="2" y="4" width="20" height="16" rx="4" />
+              <circle cx="12" cy="12" r="3.5" />
+              <circle cx="18" cy="7.5" r="1" fill="currentColor" />
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">Photo Metadata Studio</span>
+            <span class="brand-subtitle">Minimal • Premium • Modern</span>
+          </div>
+          <!-- Кнопка закриття меню для телефонів -->
+          <button
+            id="btnCloseMobileSidebar"
+            class="btn-close-sidebar"
+            aria-label="Закрити меню"
+          >
+            &times;
+          </button>
+        </div>
+
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-view="viewDashboard">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            <span>Головна</span>
+          </button>
+          <button class="nav-item" data-view="viewEditor">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M12 20h9" />
+              <path
+                d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"
+              />
+            </svg>
+            <span>Редактор</span>
+          </button>
+          <button class="nav-item" data-view="viewMetadata">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <span>Метадані</span>
+          </button>
+          <button class="nav-item" data-view="viewClean">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            <span>Очищення</span>
+          </button>
+          <button class="nav-item" data-view="viewExport">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Експорт</span>
+          </button>
+          <button class="nav-item" data-view="viewBatch">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+            </svg>
+            <span>Пакетна обробка</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="offline-badge">
+            <span class="status-dot dot-success"></span>
+            <span>100% Offline Core</span>
+          </div>
+          <button
+            id="btnHelp"
+            class="btn btn-ghost btn-sm btn-full"
+            title="Довідка"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>Допомога</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Основний контентний простір -->
+      <main class="studio-main">
+        <!-- Верхній бар (з мобільною кнопкою-гамбургером) -->
+        <header class="studio-topbar">
+          <div class="topbar-left">
+            <button
+              id="btnOpenMobileSidebar"
+              class="btn-hamburger"
+              aria-label="Відкрити меню навігації"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+            <div class="topbar-search">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                id="globalSearchInput"
+                placeholder="Пошук файлів..."
+                class="search-input"
+              />
+            </div>
+          </div>
+
+          <div class="topbar-actions">
+            <span id="filesCountBadge" class="header-counter">0 файлів</span>
+            <button
+              id="btnTopDownloadZip"
+              class="btn btn-primary btn-sm"
+              disabled
+            >
+              Завантажити ZIP
+            </button>
+          </div>
+        </header>
+
+        <!-- ТІЛО СТОРІНОК (Вкладки) -->
+        <div class="studio-content-body">
+          <!-- Вкладка 1: ГОЛОВНА (Dashboard) -->
+          <section id="viewDashboard" class="view-panel active">
+            <!-- Дропзона завантаження -->
+            <div id="dropZone" class="studio-card dropzone-card">
+              <input
+                type="file"
+                id="fileInput"
+                multiple
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                class="visually-hidden"
+              />
+              <div class="dropzone-body">
+                <div class="dropzone-cloud-icon">
+                  <svg
+                    width="44"
+                    height="44"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.6"
+                  >
+                    <path
+                      d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"
+                    />
+                    <polyline points="12 13 12 9 10 11" />
+                    <path d="M12 9l2 2" />
+                  </svg>
+                </div>
+                <p class="dropzone-main-text">Торкніться, щоб вибрати фото</p>
+                <button
+                  type="button"
+                  id="btnBrowse"
+                  class="btn btn-primary btn-browse-mobile"
+                >
+                  Вибрати файли
+                </button>
+                <p class="dropzone-sub-text">
+                  JPG, JPEG, PNG, WebP (з можливістю конвертації)
+                </p>
+              </div>
+            </div>
+
+            <!-- Інформаційна плашка / Порада -->
+            <div class="studio-card info-tip-card">
+              <div class="tip-icon">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                </svg>
+              </div>
+              <div class="tip-content">
+                <strong>Порада з приватності:</strong>
+                <p>
+                  Використовуйте профіль «Privacy Clean» перед публікацією в
+                  соцмережах для видалення геолокації та серійних номерів
+                  пристрою.
+                </p>
+              </div>
+            </div>
+
+            <!-- Таблиця файлів -->
+            <div class="studio-card table-card">
+              <div class="table-header-row">
+                <span class="card-caption">Список файлів у черзі</span>
+                <button id="btnClearList" class="btn btn-ghost btn-sm">
+                  Очистити все
+                </button>
+              </div>
+              <div class="table-responsive">
+                <table class="studio-table">
+                  <thead>
+                    <tr>
+                      <th>Файл</th>
+                      <th>Розмір</th>
+                      <th>Формат</th>
+                      <th>Статус</th>
+                      <th class="text-right">Дія</th>
+                    </tr>
+                  </thead>
+                  <tbody id="filesTableBody">
+                    <tr>
+                      <td colspan="5" class="table-empty-row">
+                        Файлів ще не додано. Виберіть фотографії вище.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- Вкладка 2: РЕДАКТОР (Форма редагування) -->
+          <section id="viewEditor" class="view-panel">
+            <div class="editor-grid">
+              <!-- Ліва картка: прев'ю активного фото -->
+              <div class="studio-card preview-card-unit">
+                <div class="preview-img-wrapper">
+                  <img
+                    id="editorPreviewImg"
+                    src=""
+                    alt="Кадр"
+                    class="preview-img-display hidden"
+                  />
+                  <div id="editorEmptyPreview" class="preview-empty-text">
+                    Оберіть файл для редагування
+                  </div>
+                </div>
+                <div class="preview-meta-strip">
+                  <span id="editorFileName" class="strip-filename">—</span>
+                  <span id="editorFileWeight" class="strip-badge">—</span>
+                </div>
+              </div>
+
+              <!-- Права картка: Поля введення -->
+              <div class="studio-card form-card-unit">
+                <div class="card-caption">Калібрування метаданих</div>
+                <p class="card-hint">
+                  Усі внесені зміни автоматично зберігаються при експорті.
+                </p>
+
+                <form
+                  id="metadataEditForm"
+                  class="studio-form"
+                  onsubmit="return false;"
+                >
+                  <div class="form-section-label">Авторське право та описи</div>
+                  <div class="form-row-2">
+                    <div class="input-group">
+                      <label for="editArtist">Автор / Фотограф</label>
+                      <input
+                        type="text"
+                        id="editArtist"
+                        class="studio-input"
+                        placeholder="Введіть автора..."
+                      />
+                    </div>
+                    <div class="input-group">
+                      <label for="editCopyright"
+                        >Правовласник (Copyright)</label
+                      >
+                      <input
+                        type="text"
+                        id="editCopyright"
+                        class="studio-input"
+                        placeholder="© 2025 Всі права захищено"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="editImageDescription">Опис / Нотатка</label>
+                    <textarea
+                      id="editImageDescription"
+                      rows="2"
+                      class="studio-input studio-textarea"
+                      placeholder="Введіть повідомлення..."
+                    ></textarea>
+                  </div>
+
+                  <div class="form-section-label">Дата та час</div>
+                  <div class="form-row-2">
+                    <div class="input-group">
+                      <label for="editDateTime">Дата та час зйомки</label>
+                      <input
+                        type="datetime-local"
+                        id="editDateTime"
+                        class="studio-input"
+                      />
+                    </div>
+                    <div class="input-group btn-align-bottom">
+                      <div class="btn-group-inline">
+                        <button
+                          type="button"
+                          id="btnSetNowDate"
+                          class="btn btn-secondary btn-sm btn-half"
+                        >
+                          Зараз
+                        </button>
+                        <button
+                          type="button"
+                          id="btnClearDate"
+                          class="btn btn-secondary btn-sm btn-half"
+                        >
+                          Очистити
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="form-section-label">Апаратура та пристрій</div>
+                  <div class="form-row-2">
+                    <div class="input-group">
+                      <label for="editMake">Виробник камери</label>
+                      <input
+                        type="text"
+                        id="editMake"
+                        class="studio-input"
+                        placeholder="Sony, Apple..."
+                      />
+                    </div>
+                    <div class="input-group">
+                      <label for="editModel">Модель камери</label>
+                      <input
+                        type="text"
+                        id="editModel"
+                        class="studio-input"
+                        placeholder="iPhone 15, ILCE..."
+                      />
+                    </div>
+                  </div>
+
+                  <div class="form-section-label">
+                    Геолокація (GPS координати)
+                  </div>
+                  <div class="form-row-2">
+                    <div class="input-group">
+                      <label for="editGpsLat">Широта (Latitude)</label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="-90"
+                        max="90"
+                        id="editGpsLat"
+                        class="studio-input"
+                        placeholder="50.450100"
+                      />
+                    </div>
+                    <div class="input-group">
+                      <label for="editGpsLon">Довгота (Longitude)</label>
+                      <input
+                        type="number"
+                        step="any"
+                        min="-180"
+                        max="180"
+                        id="editGpsLon"
+                        class="studio-input"
+                        placeholder="30.523400"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="form-actions-bar">
+                    <button
+                      type="button"
+                      id="btnGpsOnlyClear"
+                      class="btn btn-ghost btn-sm"
+                    >
+                      Стерти лише GPS
+                    </button>
+                    <div class="form-actions-right">
+                      <button
+                        type="button"
+                        id="btnResetCurrentEdits"
+                        class="btn btn-secondary"
+                      >
+                        Скинути
+                      </button>
+                      <button
+                        type="button"
+                        id="btnSaveCurrentEdits"
+                        class="btn btn-primary"
+                      >
+                        Зберегти
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </section>
+
+          <!-- Вкладка 3: МЕТАДАНІ (Перегляд) -->
+          <section id="viewMetadata" class="view-panel">
+            <div class="studio-card">
+              <div class="card-caption">Виявлені метадані у файлі</div>
+
+              <div id="viewGpsBox" class="gps-notice-box hidden">
+                <div class="notice-icon">
+                  <span class="status-dot dot-info"></span>
+                </div>
+                <div class="notice-body">
+                  <strong>Геолокація (GPS) зафіксована:</strong>
+                  <span id="viewGpsCoords" class="mono-text">--</span>
+                  <a
+                    id="viewGpsLink"
+                    href="#"
+                    target="_blank"
+                    class="notice-link"
+                    >Відкрити на карті (OSM) &rarr;</a
+                  >
+                </div>
+              </div>
+
+              <div class="metadata-categories-grid">
+                <div class="category-block">
+                  <div class="category-title">Часові штампи</div>
+                  <div class="table-responsive">
+                    <table class="category-table">
+                      <tbody id="metaTbodyDate">
+                        <tr>
+                          <td class="empty-cell">Відсутні</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="category-block">
+                  <div class="category-title">Обладнання (Камера / Оптика)</div>
+                  <div class="table-responsive">
+                    <table class="category-table">
+                      <tbody id="metaTbodyCamera">
+                        <tr>
+                          <td class="empty-cell">Відсутні</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="category-block">
+                  <div class="category-title">Авторське право</div>
+                  <div class="table-responsive">
+                    <table class="category-table">
+                      <tbody id="metaTbodyAuthor">
+                        <tr>
+                          <td class="empty-cell">Відсутні</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="category-block">
+                  <div class="category-title">Системні характеристики</div>
+                  <div class="table-responsive">
+                    <table class="category-table">
+                      <tbody id="metaTbodyTech">
+                        <tr>
+                          <td class="empty-cell">Відсутні</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Вкладка 4: ОЧИЩЕННЯ (Санітизація) -->
+          <section id="viewClean" class="view-panel">
+            <div class="studio-card">
+              <div class="card-caption">Швидкі профілі очищення метаданих</div>
+              <p class="card-hint">
+                Виберіть, які категорії персональних даних безповоротно видалити
+                з активного кадру.
+              </p>
+
+              <div class="clean-cards-grid">
+                <div class="clean-preset-card">
+                  <div class="preset-name">Видалити лише GPS</div>
+                  <p class="preset-desc">
+                    Стирає координати локації та висоту. Залишає параметри
+                    камери та дату.
+                  </p>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-full"
+                    onclick="app.executeCleaningPreset('gps')"
+                  >
+                    Очистити GPS
+                  </button>
+                </div>
+
+                <div class="clean-preset-card">
+                  <div class="preset-name">Видалити модель пристрою</div>
+                  <p class="preset-desc">
+                    Стирає модель камери, смартфона, об'єктив та серійні номери.
+                  </p>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-full"
+                    onclick="app.executeCleaningPreset('device')"
+                  >
+                    Очистити пристрій
+                  </button>
+                </div>
+
+                <div class="clean-preset-card">
+                  <div class="preset-name">Видалити автора та копірайт</div>
+                  <p class="preset-desc">
+                    Видаляє ім'я автора, правовласника та коментарі.
+                  </p>
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-full"
+                    onclick="app.executeCleaningPreset('author')"
+                  >
+                    Очистити автора
+                  </button>
+                </div>
+
+                <div class="clean-preset-card card-destructive">
+                  <div class="preset-name">Повне очищення (Privacy Clean)</div>
+                  <p class="preset-desc">
+                    Видаляє всі EXIF-заголовки та метадані для максимальної
+                    анонімності.
+                  </p>
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-full"
+                    onclick="app.executeCleaningPreset('all')"
+                  >
+                    Видалити всі метадані
+                  </button>
+                </div>
+              </div>
+
+              <div class="canvas-clean-box">
+                <div class="canvas-clean-text">
+                  <strong>Глибока санітизація Canvas:</strong>
+                  <span
+                    >Перемальовування растру для гарантованого знищення
+                    прихованих чанків у PNG та WebP.</span
+                  >
+                </div>
+                <button
+                  type="button"
+                  id="btnCanvasClean"
+                  class="btn btn-secondary btn-mobile-w100"
+                >
+                  Очистити через Canvas
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Вкладка 5: ЕКСПОРТ -->
+          <section id="viewExport" class="view-panel">
+            <div class="export-layout-grid">
+              <!-- Картка параметрів експорту -->
+              <div class="studio-card export-dialog-card">
+                <div class="card-caption">Експорт файлу</div>
+
+                <div class="input-group">
+                  <label for="selectExportFormat">Формат</label>
+                  <select id="selectExportFormat" class="studio-select">
+                    <option value="jpeg" selected>
+                      JPEG (.jpg) — конвертувати / підтримує EXIF
+                    </option>
+                    <option value="original">
+                      Зберегти в оригінальному форматі
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Слайдер якості -->
+                <div class="input-group" id="qualityControlGroup">
+                  <div class="slider-label-row">
+                    <label for="rangeJpegQuality">Якість зображення</label>
+                    <span id="labelQualityPercent" class="slider-val-badge"
+                      >95%</span
+                    >
+                  </div>
+                  <input
+                    type="range"
+                    id="rangeJpegQuality"
+                    min="70"
+                    max="100"
+                    value="95"
+                    class="studio-range-slider"
+                  />
+                </div>
+
+                <div class="input-group">
+                  <label for="exportFileName">Назва файлу</label>
+                  <div class="input-with-ext">
+                    <input
+                      type="text"
+                      id="exportFileName"
+                      class="studio-input"
+                      placeholder="photo_cleaned"
+                    />
+                    <span id="exportExtensionBadge" class="ext-badge"
+                      >.jpg</span
+                    >
+                  </div>
+                </div>
+
+                <div class="export-dialog-footer">
+                  <button
+                    type="button"
+                    id="btnVerifyExport"
+                    class="btn btn-secondary btn-mobile-w100"
+                  >
+                    Перевірити
+                  </button>
+                  <button
+                    type="button"
+                    id="btnDownloadSingle"
+                    class="btn btn-primary btn-mobile-w100"
+                  >
+                    Експортувати
+                  </button>
+                </div>
+              </div>
+
+              <!-- Порівняння та аудит -->
+              <div class="studio-card export-diff-card">
+                <div class="card-caption">Порівняння стану файлу</div>
+
+                <div class="diff-split-container">
+                  <div class="diff-side">
+                    <span class="diff-side-title">Оригінал</span>
+                    <ul id="diffOriginalList" class="diff-items-list">
+                      <li>Немає файлу</li>
+                    </ul>
+                  </div>
+                  <div class="diff-arrow">&rarr;</div>
+                  <div class="diff-side">
+                    <span class="diff-side-title">Буде збережено</span>
+                    <ul id="diffModifiedList" class="diff-items-list">
+                      <li>Готово до експорту</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div
+                  id="exportAuditNotice"
+                  class="studio-toast-banner toast-success hidden"
+                >
+                  <div class="toast-body">
+                    <strong>Аудит вихідного файлу:</strong>
+                    <div id="exportAuditDetails">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Вкладка 6: ПАКЕТНА ОБРОБКА -->
+          <section id="viewBatch" class="view-panel">
+            <div class="studio-card">
+              <div class="card-caption">Пакетна обробка та прогрес</div>
+              <p class="card-hint">
+                Застосуйте однакові налаштування до всіх файлів та завантажте
+                результат одним архівом.
+              </p>
+
+              <div class="progress-items-stack">
+                <div class="progress-item">
+                  <div class="progress-info">
+                    <span class="progress-title">Стан черги</span>
+                    <span id="batchProgressPercent" class="progress-val"
+                      >100%</span
+                    >
+                  </div>
+                  <div class="progress-track">
+                    <div
+                      id="batchProgressBar"
+                      class="progress-fill"
+                      style="width: 100%"
+                    ></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="batch-trigger-buttons">
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-mobile-w100"
+                  onclick="app.executeBatchCleaning('all')"
+                >
+                  Видалити всі метадані з усіх фото
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-mobile-w100"
+                  onclick="app.executeBatchCleaning('gps')"
+                >
+                  Видалити лише GPS з усіх фото
+                </button>
+                <button
+                  type="button"
+                  id="btnBatchZipDownload"
+                  class="btn btn-primary btn-mobile-w100"
+                  disabled
+                >
+                  Завантажити пакет ZIP
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Підвал (Футер студії) -->
+        <footer class="studio-footer">
+          <div class="footer-left">
+            <span>Photo Metadata Studio</span>
+            <span class="footer-dot">•</span>
+            <span class="footer-motto"
+              >Your photos. Your metadata. Your control.</span
+            >
+          </div>
+          <div class="footer-right">
+            <span class="status-indicator-pill"
+              ><span class="status-dot dot-success"></span>Готовий</span
+            >
+          </div>
+        </footer>
+      </main>
+
+      <!-- Тости / Сповіщення -->
+      <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+      <!-- Модальне вікно довідки -->
+      <div id="helpModal" class="modal-backdrop hidden">
+        <div class="studio-modal-card" role="dialog" aria-modal="true">
+          <div class="modal-header">
+            <span class="modal-title">Допомога та специфікація</span>
+            <button id="btnCloseModal" class="btn-close">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p>
+              <strong>Photo Metadata Studio</strong> — це повністю автономний
+              клієнтський інструмент захисту приватності фотографій.
+            </p>
+            <ul>
+              <li>
+                <strong>Конвертація в JPEG:</strong> дозволяє записати
+                відредаговані метадані (автора, дату, камеру, GPS) у файл
+                будь-якого вихідного формату (включно з PNG та WebP).
+              </li>
+              <li>
+                <strong>Автозбереження:</strong> усі значення форми фіксуються в
+                пам'яті й потрапляють у завантажений файл.
+              </li>
+              <li>
+                <strong>Приватність:</strong> 0 байтів надсилається в мережу.
+                Уся обробка виконується виключно в пам'яті вашого браузера.
+              </li>
+            </ul>
+          </div>
+          <div class="modal-footer">
+            <button id="btnModalCloseAction" class="btn btn-primary btn-full">
+              Зрозуміло
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
