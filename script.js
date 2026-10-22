@@ -63,7 +63,6 @@ class PhotoMetadataStudio {
     this.files = [];
     this.currentFileIndex = -1;
     this.piexifAvailable = typeof window.piexif !== "undefined";
-    this.jszipAvailable = typeof window.JSZip !== "undefined";
 
     this.cacheElements();
     this.bindEvents();
@@ -84,7 +83,6 @@ class PhotoMetadataStudio {
     // Шапка
     this.globalSearchInput = document.getElementById("globalSearchInput");
     this.filesCountBadge = document.getElementById("filesCountBadge");
-    this.btnTopDownloadZip = document.getElementById("btnTopDownloadZip");
 
     // Головна (Дропзона та Таблиця)
     this.dropZone = document.getElementById("dropZone");
@@ -137,11 +135,6 @@ class PhotoMetadataStudio {
     this.diffModifiedList = document.getElementById("diffModifiedList");
     this.exportAuditNotice = document.getElementById("exportAuditNotice");
     this.exportAuditDetails = document.getElementById("exportAuditDetails");
-
-    // Пакетна обробка
-    this.btnBatchZipDownload = document.getElementById("btnBatchZipDownload");
-    this.batchProgressPercent = document.getElementById("batchProgressPercent");
-    this.batchProgressBar = document.getElementById("batchProgressBar");
 
     // Допомога
     this.btnHelp = document.getElementById("btnHelp");
@@ -264,7 +257,6 @@ class PhotoMetadataStudio {
       this.populateEditForm();
       this.renderMetadataViewer();
       this.renderFilesTable();
-      this.renderBatchProgress();
       this.showToast("Значення скинуто", "info");
     });
 
@@ -273,7 +265,6 @@ class PhotoMetadataStudio {
       this.showToast("Зміни збережено для експорту", "success");
       this.renderFilesTable();
       this.renderMetadataViewer();
-      this.renderBatchProgress();
     });
 
     // Очищення Canvas
@@ -299,12 +290,6 @@ class PhotoMetadataStudio {
       this.verifyActiveFileIntegrity(),
     );
 
-    this.btnTopDownloadZip.addEventListener("click", () =>
-      this.exportAllAsZip(),
-    );
-    this.btnBatchZipDownload.addEventListener("click", () =>
-      this.exportAllAsZip(),
-    );
 
     // Допомога / Модальне вікно
     this.btnHelp.addEventListener("click", () =>
@@ -386,13 +371,10 @@ class PhotoMetadataStudio {
 
     if (this.files.length > 0) {
       this.filesCountBadge.textContent = `${this.files.length} файлів`;
-      this.btnTopDownloadZip.disabled = false;
-      this.btnBatchZipDownload.disabled = false;
       this.renderFilesTable();
       if (this.currentFileIndex === -1) {
         this.selectFile(0);
       }
-      this.renderBatchProgress();
       if (this.files.length > previousCount) {
         this.showToast(`Додано: ${this.files.length - previousCount} фото`, "success");
       }
@@ -573,7 +555,6 @@ class PhotoMetadataStudio {
     } else {
       this.selectFile(Math.max(0, index - 1));
       this.filesCountBadge.textContent = `${this.files.length} файлів`;
-      this.renderBatchProgress();
     }
   }
 
@@ -581,15 +562,12 @@ class PhotoMetadataStudio {
     this.files = [];
     this.currentFileIndex = -1;
     this.filesCountBadge.textContent = "0 файлів";
-    this.btnTopDownloadZip.disabled = true;
-    this.btnBatchZipDownload.disabled = true;
     this.editorPreviewImg.src = "";
     this.editorPreviewImg.classList.add("hidden");
     this.editorEmptyPreview.classList.remove("hidden");
     this.editorFileName.textContent = "—";
     this.editorFileWeight.textContent = "—";
     this.renderFilesTable();
-    this.renderBatchProgress();
   }
 
   syncStagedEdits() {
@@ -743,28 +721,6 @@ class PhotoMetadataStudio {
     this.renderMetadataViewer();
     this.renderFilesTable();
     this.updateExportFormatUI();
-    this.renderBatchProgress();
-  }
-
-  executeBatchCleaning(preset) {
-    if (!this.files.length) {
-      this.showToast("Спочатку додайте фотографії", "warning");
-      return;
-    }
-    this.files.forEach((_, idx) => {
-      this.currentFileIndex = idx;
-      this.executeCleaningPreset(preset);
-    });
-    this.showToast(`Пакетно очищено ${this.files.length} файлів`, "success");
-    this.renderBatchProgress();
-  }
-
-  renderBatchProgress() {
-    const total = this.files.length;
-    const processed = this.files.filter((file) => file.isModified || file.isWipedAll).length;
-    const percent = total ? Math.round((processed / total) * 100) : 0;
-    if (this.batchProgressPercent) this.batchProgressPercent.textContent = `${percent}%`;
-    if (this.batchProgressBar) this.batchProgressBar.style.width = `${percent}%`;
   }
 
   updateExportFormatUI() {
@@ -945,32 +901,6 @@ class PhotoMetadataStudio {
       this.exportAuditDetails.textContent =
         "EXIF структури не виявлено (чистий потік).";
     }
-  }
-
-  async exportAllAsZip() {
-    if (!this.jszipAvailable || this.files.length === 0) return;
-
-    this.showToast("Формування ZIP архіву...", "info");
-    const zip = new window.JSZip();
-
-    for (let i = 0; i < this.files.length; i++) {
-      const f = this.files[i];
-      const dataUrl = await this.buildTargetDataUrl(f);
-      const ext = this.getOutputExtension(f);
-      const base64 = dataUrl.split(",")[1];
-      zip.file(`${f.baseName}_cleaned_${i + 1}${ext}`, base64, {
-        base64: true,
-      });
-    }
-
-    const zipBlob = await zip.generateAsync({ type: "blob" });
-    const savedWithShareSheet = await this.saveBlobForDevice(zipBlob, "photos_cleaned.zip");
-    this.showToast(
-      savedWithShareSheet
-        ? "Відкрито меню iPhone — виберіть «Зберегти у Файли»"
-        : "ZIP-архів успішно завантажено",
-      "success",
-    );
   }
 
   async saveForDevice(dataUrl, filename) {

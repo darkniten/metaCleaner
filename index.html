@@ -15,7 +15,6 @@
 
     <!-- Браузерні бібліотеки (100% клієнтські, без Node.js) -->
     <script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   </head>
   <body>
     <div class="studio-app">
@@ -127,20 +126,6 @@
             </svg>
             <span>Експорт</span>
           </button>
-          <button class="nav-item" data-view="viewBatch">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-            </svg>
-            <span>Пакетна обробка</span>
-          </button>
         </nav>
 
         <div class="sidebar-footer">
@@ -216,13 +201,6 @@
 
           <div class="topbar-actions">
             <span id="filesCountBadge" class="header-counter">0 файлів</span>
-            <button
-              id="btnTopDownloadZip"
-              class="btn btn-primary btn-sm"
-              disabled
-            >
-              Завантажити ZIP
-            </button>
           </div>
         </header>
 
@@ -771,59 +749,6 @@
             </div>
           </section>
 
-          <!-- Вкладка 6: ПАКЕТНА ОБРОБКА -->
-          <section id="viewBatch" class="view-panel">
-            <div class="studio-card">
-              <div class="card-caption">Пакетна обробка та прогрес</div>
-              <p class="card-hint">
-                Застосуйте однакові налаштування до всіх файлів та завантажте
-                результат одним архівом.
-              </p>
-
-              <div class="progress-items-stack">
-                <div class="progress-item">
-                  <div class="progress-info">
-                    <span class="progress-title">Стан черги</span>
-                    <span id="batchProgressPercent" class="progress-val"
-                      >100%</span
-                    >
-                  </div>
-                  <div class="progress-track">
-                    <div
-                      id="batchProgressBar"
-                      class="progress-fill"
-                      style="width: 100%"
-                    ></div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="batch-trigger-buttons">
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-mobile-w100"
-                  onclick="app.executeBatchCleaning('all')"
-                >
-                  Видалити всі метадані з усіх фото
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-secondary btn-mobile-w100"
-                  onclick="app.executeBatchCleaning('gps')"
-                >
-                  Видалити лише GPS з усіх фото
-                </button>
-                <button
-                  type="button"
-                  id="btnBatchZipDownload"
-                  class="btn btn-primary btn-mobile-w100"
-                  disabled
-                >
-                  Завантажити пакет ZIP
-                </button>
-              </div>
-            </div>
-          </section>
         </div>
 
         <!-- Підвал (Футер студії) -->
@@ -844,23 +769,20 @@
 
         <!-- Нижня навігація: основні дії завжди під пальцем на смартфоні -->
         <nav class="mobile-tabbar" aria-label="Основна навігація">
-          <button class="nav-item active" data-view="viewDashboard" aria-label="Файли">
-            <span class="mobile-nav-icon">⌂</span><span>Файли</span>
+          <button class="nav-item active" data-view="viewDashboard" aria-label="Файли" title="Файли">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z"/></svg>
           </button>
-          <button class="nav-item" data-view="viewEditor" aria-label="Редагувати">
-            <span class="mobile-nav-icon">✦</span><span>Редагувати</span>
+          <button class="nav-item" data-view="viewEditor" aria-label="Редагувати" title="Редагувати">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5.5 4 4M4 20l4.2-1 10.9-10.9a2.8 2.8 0 0 0-4-4L4.2 15ZM13 6l4 4"/></svg>
           </button>
-          <button class="nav-item" data-view="viewMetadata" aria-label="Метадані">
-            <span class="mobile-nav-icon">i</span><span>Дані</span>
+          <button class="nav-item" data-view="viewMetadata" aria-label="Метадані" title="Метадані">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg>
           </button>
-          <button class="nav-item" data-view="viewClean" aria-label="Очистити">
-            <span class="mobile-nav-icon">◈</span><span>Очистити</span>
+          <button class="nav-item" data-view="viewClean" aria-label="Очистити" title="Очистити">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.7 2.9 8.3 7 10 4.1-1.7 7-5.3 7-10V6Z"/><path d="m9 12 2 2 4-4"/></svg>
           </button>
-          <button class="nav-item" data-view="viewExport" aria-label="Експортувати">
-            <span class="mobile-nav-icon">↓</span><span>Експорт</span>
-          </button>
-          <button class="nav-item" data-view="viewBatch" aria-label="Пакетна обробка">
-            <span class="mobile-nav-icon">▦</span><span>Пакетно</span>
+          <button class="nav-item" data-view="viewExport" aria-label="Експортувати" title="Експортувати">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 16v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg>
           </button>
         </nav>
       </main>
