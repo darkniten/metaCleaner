@@ -682,7 +682,7 @@
                       JPEG (.jpg) — конвертувати / підтримує EXIF
                     </option>
                     <option value="original">
-                      Зберегти в оригінальному форматі
+                      Оригінальний формат (лише без змін)
                     </option>
                   </select>
                 </div>
@@ -841,6 +841,28 @@
             >
           </div>
         </footer>
+
+        <!-- Нижня навігація: основні дії завжди під пальцем на смартфоні -->
+        <nav class="mobile-tabbar" aria-label="Основна навігація">
+          <button class="nav-item active" data-view="viewDashboard" aria-label="Файли">
+            <span class="mobile-nav-icon">⌂</span><span>Файли</span>
+          </button>
+          <button class="nav-item" data-view="viewEditor" aria-label="Редагувати">
+            <span class="mobile-nav-icon">✦</span><span>Редагувати</span>
+          </button>
+          <button class="nav-item" data-view="viewMetadata" aria-label="Метадані">
+            <span class="mobile-nav-icon">i</span><span>Дані</span>
+          </button>
+          <button class="nav-item" data-view="viewClean" aria-label="Очистити">
+            <span class="mobile-nav-icon">◈</span><span>Очистити</span>
+          </button>
+          <button class="nav-item" data-view="viewExport" aria-label="Експортувати">
+            <span class="mobile-nav-icon">↓</span><span>Експорт</span>
+          </button>
+          <button class="nav-item" data-view="viewBatch" aria-label="Пакетна обробка">
+            <span class="mobile-nav-icon">▦</span><span>Пакетно</span>
+          </button>
+        </nav>
       </main>
 
       <!-- Тости / Сповіщення -->
@@ -869,8 +891,8 @@
                 пам'яті й потрапляють у завантажений файл.
               </li>
               <li>
-                <strong>Приватність:</strong> 0 байтів надсилається в мережу.
-                Уся обробка виконується виключно в пам'яті вашого браузера.
+                <strong>Приватність:</strong> фотографії не надсилаються в
+                мережу. Уся обробка виконується в пам'яті вашого браузера.
               </li>
             </ul>
           </div>
