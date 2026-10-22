@@ -140,6 +140,8 @@ class PhotoMetadataStudio {
 
     // Пакетна обробка
     this.btnBatchZipDownload = document.getElementById("btnBatchZipDownload");
+    this.batchProgressPercent = document.getElementById("batchProgressPercent");
+    this.batchProgressBar = document.getElementById("batchProgressBar");
 
     // Допомога
     this.btnHelp = document.getElementById("btnHelp");
@@ -258,7 +260,11 @@ class PhotoMetadataStudio {
       if (!file) return;
       file.stagedEdits = JSON.parse(JSON.stringify(file.initialStaged));
       file.isWipedAll = false;
+      file.isModified = false;
       this.populateEditForm();
+      this.renderMetadataViewer();
+      this.renderFilesTable();
+      this.renderBatchProgress();
       this.showToast("Значення скинуто", "info");
     });
 
@@ -266,6 +272,8 @@ class PhotoMetadataStudio {
       this.syncStagedEdits();
       this.showToast("Зміни збережено для експорту", "success");
       this.renderFilesTable();
+      this.renderMetadataViewer();
+      this.renderBatchProgress();
     });
 
     // Очищення Canvas
@@ -359,6 +367,7 @@ class PhotoMetadataStudio {
   }
 
   async handleIncomingFiles(fileList) {
+    const previousCount = this.files.length;
     for (const rawFile of Array.from(fileList)) {
       if (
         !/\.(jpe?g|png|webp)$/i.test(rawFile.name) &&
@@ -382,6 +391,10 @@ class PhotoMetadataStudio {
       this.renderFilesTable();
       if (this.currentFileIndex === -1) {
         this.selectFile(0);
+      }
+      this.renderBatchProgress();
+      if (this.files.length > previousCount) {
+        this.showToast(`Додано: ${this.files.length - previousCount} фото`, "success");
       }
     }
   }
@@ -503,11 +516,12 @@ class PhotoMetadataStudio {
         statusHtml = '<span class="status-dot dot-warning"></span>Містить EXIF';
       }
 
+      const safeName = this.escapeHtml(file.name);
       tr.innerHTML = `
         <td>
           <div style="display:flex; align-items:center; gap:8px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            <span class="filename-text" title="${file.name}">${file.name}</span>
+            <span class="filename-text" title="${safeName}">${safeName}</span>
           </div>
         </td>
         <td>${ExifUtils.formatBytes(file.size)}</td>
@@ -558,6 +572,8 @@ class PhotoMetadataStudio {
       this.clearAll();
     } else {
       this.selectFile(Math.max(0, index - 1));
+      this.filesCountBadge.textContent = `${this.files.length} файлів`;
+      this.renderBatchProgress();
     }
   }
 
@@ -573,11 +589,14 @@ class PhotoMetadataStudio {
     this.editorFileName.textContent = "—";
     this.editorFileWeight.textContent = "—";
     this.renderFilesTable();
+    this.renderBatchProgress();
   }
 
   syncStagedEdits() {
     const file = this.files[this.currentFileIndex];
     if (!file) return;
+
+    const wasWipedAll = file.isWipedAll;
 
     file.stagedEdits.artist = this.editArtist.value.trim();
     file.stagedEdits.copyright = this.editCopyright.value.trim();
@@ -593,8 +612,16 @@ class PhotoMetadataStudio {
     file.stagedEdits.lat = isNaN(lat) ? null : lat;
     file.stagedEdits.lon = isNaN(lon) ? null : lon;
 
-    file.isModified = true;
-    file.isWipedAll = false;
+    const fieldsAreEmpty = Object.values(file.stagedEdits).every(
+      (value) => value === "" || value === null,
+    );
+    if (wasWipedAll && fieldsAreEmpty) {
+      file.isModified = true;
+      file.isWipedAll = true;
+    } else {
+      file.isModified = !this.stagedEditsEqual(file.stagedEdits, file.initialStaged);
+      file.isWipedAll = false;
+    }
   }
 
   populateEditForm() {
@@ -627,7 +654,11 @@ class PhotoMetadataStudio {
 
     const addRow = (tbody, k, v) => {
       const tr = document.createElement("tr");
-      tr.innerHTML = `<td>${k}</td><td>${v}</td>`;
+      const key = document.createElement("td");
+      const value = document.createElement("td");
+      key.textContent = k;
+      value.textContent = v;
+      tr.append(key, value);
       tbody.appendChild(tr);
     };
 
@@ -659,6 +690,17 @@ class PhotoMetadataStudio {
       this.viewGpsCoords.textContent = `${file.stagedEdits.lat}, ${file.stagedEdits.lon}`;
       this.viewGpsLink.href = `https://www.openstreetmap.org/?mlat=${file.stagedEdits.lat}&mlon=${file.stagedEdits.lon}#map=16/${file.stagedEdits.lat}/${file.stagedEdits.lon}`;
     }
+
+    [this.metaTbodyDate, this.metaTbodyCamera, this.metaTbodyAuthor].forEach((tbody) => {
+      if (!tbody.children.length) {
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+        cell.className = "empty-cell";
+        cell.textContent = "Відсутні";
+        row.appendChild(cell);
+        tbody.appendChild(row);
+      }
+    });
   }
 
   executeCleaningPreset(preset) {
@@ -700,14 +742,29 @@ class PhotoMetadataStudio {
     this.populateEditForm();
     this.renderMetadataViewer();
     this.renderFilesTable();
+    this.updateExportFormatUI();
+    this.renderBatchProgress();
   }
 
   executeBatchCleaning(preset) {
+    if (!this.files.length) {
+      this.showToast("Спочатку додайте фотографії", "warning");
+      return;
+    }
     this.files.forEach((_, idx) => {
       this.currentFileIndex = idx;
       this.executeCleaningPreset(preset);
     });
     this.showToast(`Пакетно очищено ${this.files.length} файлів`, "success");
+    this.renderBatchProgress();
+  }
+
+  renderBatchProgress() {
+    const total = this.files.length;
+    const processed = this.files.filter((file) => file.isModified || file.isWipedAll).length;
+    const percent = total ? Math.round((processed / total) * 100) : 0;
+    if (this.batchProgressPercent) this.batchProgressPercent.textContent = `${percent}%`;
+    if (this.batchProgressBar) this.batchProgressBar.style.width = `${percent}%`;
   }
 
   updateExportFormatUI() {
@@ -724,7 +781,7 @@ class PhotoMetadataStudio {
         /jpe?g$/i.test(file.originalExtension));
     this.qualityControlGroup.style.display = isJpeg ? "flex" : "none";
     this.exportExtensionBadge.textContent =
-      file.exportFormat === "jpeg" ? ".jpg" : file.originalExtension;
+      this.getOutputExtension(file);
   }
 
   async buildTargetDataUrl(file) {
@@ -810,6 +867,13 @@ class PhotoMetadataStudio {
       }
     }
 
+    // PNG/WebP cannot receive EXIF through piexif. If the user changed or
+    // removed metadata, export a clean JPEG instead of silently returning the
+    // untouched source under a misleading filename.
+    if (!isSourceJpeg && (file.isModified || file.isWipedAll)) {
+      return baseJpegDataUrl;
+    }
+
     return file.originalDataUrl;
   }
 
@@ -836,15 +900,17 @@ class PhotoMetadataStudio {
 
     this.syncStagedEdits();
     const resultDataUrl = await this.buildTargetDataUrl(file);
-    const targetExt =
-      this.selectExportFormat.value === "jpeg"
-        ? ".jpg"
-        : file.originalExtension;
+    const targetExt = this.getOutputExtension(file);
     const finalName =
       (this.exportFileName.value.trim() || file.baseName) + targetExt;
 
-    this.triggerDownload(resultDataUrl, finalName);
-    this.showToast(`Експортовано: ${finalName}`, "success");
+    const savedWithShareSheet = await this.saveForDevice(resultDataUrl, finalName);
+    this.showToast(
+      savedWithShareSheet
+        ? "Відкрито меню iPhone — виберіть «Зберегти у Файли»"
+        : `Експортовано: ${finalName}`,
+      "success",
+    );
   }
 
   async verifyActiveFileIntegrity() {
@@ -872,12 +938,9 @@ class PhotoMetadataStudio {
         ? "Присутні"
         : "Відсутні";
 
-      this.exportAuditDetails.innerHTML = `
-        Формат: <strong>${this.selectExportFormat.value.toUpperCase()}</strong> • 
-        Автор: <strong>${author}</strong> • 
-        Камера: <strong>${make}</strong> • 
-        GPS: <strong>${hasGps}</strong>
-      `;
+      this.exportAuditDetails.textContent =
+        `Формат: ${this.selectExportFormat.value.toUpperCase()} • ` +
+        `Автор: ${author} • Камера: ${make} • GPS: ${hasGps}`;
     } catch (e) {
       this.exportAuditDetails.textContent =
         "EXIF структури не виявлено (чистий потік).";
@@ -893,8 +956,7 @@ class PhotoMetadataStudio {
     for (let i = 0; i < this.files.length; i++) {
       const f = this.files[i];
       const dataUrl = await this.buildTargetDataUrl(f);
-      const ext =
-        this.selectExportFormat.value === "jpeg" ? ".jpg" : f.originalExtension;
+      const ext = this.getOutputExtension(f);
       const base64 = dataUrl.split(",")[1];
       zip.file(`${f.baseName}_cleaned_${i + 1}${ext}`, base64, {
         base64: true,
@@ -902,10 +964,40 @@ class PhotoMetadataStudio {
     }
 
     const zipBlob = await zip.generateAsync({ type: "blob" });
-    const url = URL.createObjectURL(zipBlob);
-    this.triggerDownload(url, "photos_cleaned.zip");
-    setTimeout(() => URL.revokeObjectURL(url), 20000);
-    this.showToast("ZIP-архів успішно завантажено", "success");
+    const savedWithShareSheet = await this.saveBlobForDevice(zipBlob, "photos_cleaned.zip");
+    this.showToast(
+      savedWithShareSheet
+        ? "Відкрито меню iPhone — виберіть «Зберегти у Файли»"
+        : "ZIP-архів успішно завантажено",
+      "success",
+    );
+  }
+
+  async saveForDevice(dataUrl, filename) {
+    const response = await fetch(dataUrl);
+    return this.saveBlobForDevice(await response.blob(), filename);
+  }
+
+  async saveBlobForDevice(blob, filename) {
+    const isAppleMobile = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const file = new File([blob], filename, { type: blob.type || "application/octet-stream" });
+
+    // iOS Safari does not reliably honour the download attribute. The native
+    // share sheet gives the person an explicit "Save to Files" path instead.
+    if (isAppleMobile && navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+      try {
+        await navigator.share({ files: [file], title: filename });
+        return true;
+      } catch (error) {
+        if (error?.name === "AbortError") return true;
+      }
+    }
+
+    const objectUrl = URL.createObjectURL(blob);
+    this.triggerDownload(objectUrl, filename);
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    return false;
   }
 
   triggerDownload(url, filename) {
@@ -961,6 +1053,27 @@ class PhotoMetadataStudio {
       orig.lat ? `${orig.lat}, ${orig.lon}` : null,
       cur.lat ? `${cur.lat}, ${cur.lon}` : null,
     );
+  }
+
+  stagedEditsEqual(first, second) {
+    return JSON.stringify(first) === JSON.stringify(second);
+  }
+
+  getOutputExtension(file) {
+    const isSourceJpeg = /\.jpe?g$/i.test(file.name);
+    if (
+      this.selectExportFormat.value === "jpeg" ||
+      (!isSourceJpeg && (file.isModified || file.isWipedAll))
+    ) {
+      return ".jpg";
+    }
+    return file.originalExtension;
+  }
+
+  escapeHtml(value) {
+    const element = document.createElement("span");
+    element.textContent = value;
+    return element.innerHTML;
   }
 }
 
