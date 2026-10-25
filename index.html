@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>Photo Metadata Studio</title>
+    <title>Meta — Private Photo Studio</title>
     <meta
       name="description"
       content="Minimal, Premium, Modern Photo Metadata Studio — перегляд, редагування та очищення метаданих без сервера."
@@ -17,12 +17,18 @@
     <script src="https://cdn.jsdelivr.net/npm/piexifjs@1.0.6/piexif.min.js"></script>
   </head>
   <body>
+    <div class="glass-atmosphere" aria-hidden="true">
+      <span class="atmosphere-orb orb-one"></span>
+      <span class="atmosphere-orb orb-two"></span>
+      <span class="atmosphere-orb orb-three"></span>
+      <span class="atmosphere-grain"></span>
+    </div>
     <div class="studio-app">
       <!-- Затінення для мобільного меню (Backdrop) -->
       <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
 
       <!-- Ліва панель навігації (Drawer на смартфонах) -->
-      <aside id="studioSidebar" class="studio-sidebar">
+      <aside id="studioSidebar" class="studio-sidebar desktop-rail">
         <div class="sidebar-header">
           <div class="brand-logo">
             <svg
@@ -158,7 +164,7 @@
       <!-- Основний контентний простір -->
       <main class="studio-main">
         <!-- Верхній бар (з мобільною кнопкою-гамбургером) -->
-        <header class="studio-topbar">
+        <header class="studio-topbar desktop-toolbar">
           <div class="topbar-left">
             <button
               id="btnOpenMobileSidebar"
@@ -204,10 +210,40 @@
           </div>
         </header>
 
+        <!-- Окремий мобільний app bar: телефон не використовує desktop-дровер. -->
+        <header class="mobile-appbar">
+          <div class="mobile-appbar-row">
+            <button class="mobile-brand" data-view="viewDashboard" aria-label="До фототеки">
+              <span class="mobile-brand-mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="4"/><circle cx="12" cy="12" r="3.5"/><path d="M8 5 9.2 3h5.6L16 5"/></svg>
+              </span>
+              <span><strong>Meta</strong><small id="mobileQueueCount">Нова сесія</small></span>
+            </button>
+            <div class="mobile-appbar-actions">
+              <button class="mobile-icon-button" data-open-picker aria-label="Додати фотографії">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <button class="mobile-icon-button" data-open-help aria-label="Допомога">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M9.5 9.4a2.6 2.6 0 0 1 5 .9c0 1.8-2.5 2.2-2.5 3.8M12 17h.01"/></svg>
+              </button>
+            </div>
+          </div>
+          <button id="mobileActiveFile" class="mobile-active-file hidden" data-view="viewEditor">
+            <span class="active-file-dot"></span>
+            <span id="mobileActiveFileName">Фото не вибрано</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+          </button>
+        </header>
+
         <!-- ТІЛО СТОРІНОК (Вкладки) -->
         <div class="studio-content-body">
           <!-- Вкладка 1: ГОЛОВНА (Dashboard) -->
           <section id="viewDashboard" class="view-panel active">
+            <div class="mobile-view-intro">
+              <span class="mobile-kicker">ON-DEVICE PHOTO PRIVACY</span>
+              <h1>Керуйте слідом своїх фото.</h1>
+              <p>Завантажте кадр — жоден байт не залишить ваш пристрій.</p>
+            </div>
             <!-- Дропзона завантаження -->
             <div id="dropZone" class="studio-card dropzone-card">
               <input
@@ -300,11 +336,17 @@
                   </tbody>
                 </table>
               </div>
+              <div id="mobileFilesList" class="mobile-files-list" aria-live="polite"></div>
             </div>
           </section>
 
           <!-- Вкладка 2: РЕДАКТОР (Форма редагування) -->
           <section id="viewEditor" class="view-panel">
+            <div class="mobile-view-intro">
+              <span class="mobile-kicker">EDIT</span>
+              <h1>Налаштування кадру.</h1>
+              <p>Редагуйте тільки те, що хочете зберегти в експорті.</p>
+            </div>
             <div class="editor-grid">
               <!-- Ліва картка: прев'ю активного фото -->
               <div class="studio-card preview-card-unit">
@@ -485,6 +527,11 @@
 
           <!-- Вкладка 3: МЕТАДАНІ (Перегляд) -->
           <section id="viewMetadata" class="view-panel">
+            <div class="mobile-view-intro">
+              <span class="mobile-kicker">INSPECT</span>
+              <h1>Карта даних фото.</h1>
+              <p>Перевірте дані, які зараз записані у файлі.</p>
+            </div>
             <div class="studio-card">
               <div class="card-caption">Виявлені метадані у файлі</div>
 
@@ -560,6 +607,11 @@
 
           <!-- Вкладка 4: ОЧИЩЕННЯ (Санітизація) -->
           <section id="viewClean" class="view-panel">
+            <div class="mobile-view-intro">
+              <span class="mobile-kicker">PRIVACY CONTROLS</span>
+              <h1>Залиште тільки потрібне.</h1>
+              <p>Очищення застосовується до активного фото перед експортом.</p>
+            </div>
             <div class="studio-card">
               <div class="card-caption">Швидкі профілі очищення метаданих</div>
               <p class="card-hint">
@@ -577,7 +629,7 @@
                   <button
                     type="button"
                     class="btn btn-secondary btn-full"
-                    onclick="app.executeCleaningPreset('gps')"
+                    data-preset="gps"
                   >
                     Очистити GPS
                   </button>
@@ -591,7 +643,7 @@
                   <button
                     type="button"
                     class="btn btn-secondary btn-full"
-                    onclick="app.executeCleaningPreset('device')"
+                    data-preset="device"
                   >
                     Очистити пристрій
                   </button>
@@ -605,7 +657,7 @@
                   <button
                     type="button"
                     class="btn btn-secondary btn-full"
-                    onclick="app.executeCleaningPreset('author')"
+                    data-preset="author"
                   >
                     Очистити автора
                   </button>
@@ -620,7 +672,7 @@
                   <button
                     type="button"
                     class="btn btn-primary btn-full"
-                    onclick="app.executeCleaningPreset('all')"
+                    data-preset="all"
                   >
                     Видалити всі метадані
                   </button>
@@ -648,6 +700,11 @@
 
           <!-- Вкладка 5: ЕКСПОРТ -->
           <section id="viewExport" class="view-panel">
+            <div class="mobile-view-intro">
+              <span class="mobile-kicker">EXPORT</span>
+              <h1>Готово до збереження.</h1>
+              <p>Перевірте результат і збережіть чисту версію фото.</p>
+            </div>
             <div class="export-layout-grid">
               <!-- Картка параметрів експорту -->
               <div class="studio-card export-dialog-card">

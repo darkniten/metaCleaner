@@ -67,6 +67,7 @@ class PhotoMetadataStudio {
     this.cacheElements();
     this.bindEvents();
     this.initMobileDrawer();
+    this.renderFilesTable();
   }
 
   cacheElements() {
@@ -79,6 +80,12 @@ class PhotoMetadataStudio {
     );
     this.navItems = document.querySelectorAll(".nav-item");
     this.viewPanels = document.querySelectorAll(".view-panel");
+    this.mobileActiveFile = document.getElementById("mobileActiveFile");
+    this.mobileActiveFileName = document.getElementById("mobileActiveFileName");
+    this.mobileQueueCount = document.getElementById("mobileQueueCount");
+    this.openPickerButtons = document.querySelectorAll("[data-open-picker]");
+    this.openHelpButtons = document.querySelectorAll("[data-open-help]");
+    this.closeHelpButtons = document.querySelectorAll("[data-close-help]");
 
     // Шапка
     this.globalSearchInput = document.getElementById("globalSearchInput");
@@ -90,6 +97,7 @@ class PhotoMetadataStudio {
     this.btnBrowse = document.getElementById("btnBrowse");
     this.btnClearList = document.getElementById("btnClearList");
     this.filesTableBody = document.getElementById("filesTableBody");
+    this.mobileFilesList = document.getElementById("mobileFilesList");
 
     // Редактор
     this.editorPreviewImg = document.getElementById("editorPreviewImg");
@@ -121,6 +129,7 @@ class PhotoMetadataStudio {
 
     // Очищення
     this.btnCanvasClean = document.getElementById("btnCanvasClean");
+    this.cleanPresetButtons = document.querySelectorAll("[data-preset]");
 
     // Експорт
     this.selectExportFormat = document.getElementById("selectExportFormat");
@@ -145,6 +154,15 @@ class PhotoMetadataStudio {
   }
 
   initMobileDrawer() {
+    if (
+      !this.studioSidebar ||
+      !this.sidebarBackdrop ||
+      !this.btnOpenMobileSidebar ||
+      !this.btnCloseMobileSidebar
+    ) {
+      return;
+    }
+
     const openMenu = () => {
       this.studioSidebar.classList.add("drawer-open");
       this.sidebarBackdrop.classList.add("active");
@@ -180,10 +198,20 @@ class PhotoMetadataStudio {
       });
     });
 
+    this.mobileActiveFile?.addEventListener("click", () =>
+      this.switchView("viewEditor"),
+    );
+
     // Дропзона
     this.btnBrowse.addEventListener("click", (e) => {
       e.stopPropagation();
       this.fileInput.click();
+    });
+    this.openPickerButtons.forEach((button) => {
+      button.addEventListener("click", (event) => {
+        event.stopPropagation();
+        this.fileInput.click();
+      });
     });
     this.dropZone.addEventListener("click", () => this.fileInput.click());
 
@@ -210,6 +238,12 @@ class PhotoMetadataStudio {
     });
 
     this.btnClearList.addEventListener("click", () => this.clearAll());
+
+    this.cleanPresetButtons.forEach((button) => {
+      button.addEventListener("click", () =>
+        this.executeCleaningPreset(button.dataset.preset),
+      );
+    });
 
     // Live-sync полів форми
     const formFields = [
@@ -245,6 +279,8 @@ class PhotoMetadataStudio {
       this.editGpsLat.value = "";
       this.editGpsLon.value = "";
       this.syncStagedEdits();
+      this.renderMetadataViewer();
+      this.renderFilesTable();
       this.showToast("Координати GPS очищено", "info");
     });
 
@@ -275,12 +311,16 @@ class PhotoMetadataStudio {
 
     // Експорт
     this.selectExportFormat.addEventListener("change", () => {
+      const file = this.files[this.currentFileIndex];
+      if (file) file.exportFormat = this.selectExportFormat.value;
       this.updateExportFormatUI();
       this.renderDiff();
     });
 
     this.rangeJpegQuality.addEventListener("input", (e) => {
       this.labelQualityPercent.textContent = `${e.target.value}%`;
+      const file = this.files[this.currentFileIndex];
+      if (file) file.jpegQuality = parseInt(e.target.value, 10) / 100;
     });
 
     this.btnDownloadSingle.addEventListener("click", () =>
@@ -295,6 +335,12 @@ class PhotoMetadataStudio {
     this.btnHelp.addEventListener("click", () =>
       this.helpModal.classList.remove("hidden"),
     );
+    this.openHelpButtons.forEach((button) =>
+      button.addEventListener("click", () => this.helpModal.classList.remove("hidden")),
+    );
+    this.closeHelpButtons.forEach((button) =>
+      button.addEventListener("click", () => this.helpModal.classList.add("hidden")),
+    );
     this.btnCloseModal.addEventListener("click", () =>
       this.helpModal.classList.add("hidden"),
     );
@@ -307,13 +353,7 @@ class PhotoMetadataStudio {
 
     // Пошук
     this.globalSearchInput.addEventListener("input", (e) => {
-      const term = e.target.value.toLowerCase().trim();
-      const rows = this.filesTableBody.querySelectorAll("tr[data-index]");
-      rows.forEach((r) => {
-        const name =
-          r.querySelector(".filename-text")?.textContent.toLowerCase() || "";
-        r.style.display = name.includes(term) ? "" : "none";
-      });
+      this.filterQueue(e.target.value);
     });
   }
 
@@ -336,11 +376,11 @@ class PhotoMetadataStudio {
   }
 
   switchView(viewId) {
+    if (!document.getElementById(viewId)) return;
     this.navItems.forEach((item) => {
-      item.classList.toggle(
-        "active",
-        item.getAttribute("data-view") === viewId,
-      );
+      const isActive = item.getAttribute("data-view") === viewId;
+      item.classList.toggle("active", isActive);
+      item.setAttribute("aria-current", isActive ? "page" : "false");
     });
     this.viewPanels.forEach((panel) => {
       panel.classList.toggle("active", panel.id === viewId);
@@ -348,6 +388,10 @@ class PhotoMetadataStudio {
 
     if (viewId === "viewExport") {
       this.renderDiff();
+    }
+
+    if (window.matchMedia("(max-width: 820px)").matches) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
 
@@ -370,7 +414,6 @@ class PhotoMetadataStudio {
     }
 
     if (this.files.length > 0) {
-      this.filesCountBadge.textContent = `${this.files.length} файлів`;
       this.renderFilesTable();
       if (this.currentFileIndex === -1) {
         this.selectFile(0);
@@ -480,6 +523,8 @@ class PhotoMetadataStudio {
   renderFilesTable() {
     if (this.files.length === 0) {
       this.filesTableBody.innerHTML = `<tr><td colspan="5" class="table-empty-row">Файлів ще не додано. Виберіть фотографії вище.</td></tr>`;
+      this.renderMobileFilesList();
+      this.updateQueueSummary();
       return;
     }
 
@@ -503,7 +548,7 @@ class PhotoMetadataStudio {
         <td>
           <div style="display:flex; align-items:center; gap:8px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            <span class="filename-text" title="${safeName}">${safeName}</span>
+            <span class="filename-text">${safeName}</span>
           </div>
         </td>
         <td>${ExifUtils.formatBytes(file.size)}</td>
@@ -527,6 +572,108 @@ class PhotoMetadataStudio {
 
       this.filesTableBody.appendChild(tr);
     });
+
+    this.renderMobileFilesList();
+    this.updateQueueSummary();
+  }
+
+  renderMobileFilesList() {
+    if (!this.mobileFilesList) return;
+    this.mobileFilesList.innerHTML = "";
+
+    if (this.files.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "mobile-queue-empty";
+      empty.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10 12 3l9 7v9a2 2 0 0 1-2 2h-4v-6H9v6H5a2 2 0 0 1-2-2Z"/></svg><span>Тут зʼявляться ваші фото</span>`;
+      this.mobileFilesList.appendChild(empty);
+      return;
+    }
+
+    this.files.forEach((file, index) => {
+      const card = document.createElement("article");
+      card.className = "mobile-file-card";
+      card.dataset.index = index;
+      if (index === this.currentFileIndex) card.classList.add("is-active");
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", `Відкрити ${file.name}`);
+
+      const thumb = document.createElement("img");
+      thumb.className = "mobile-file-thumb";
+      thumb.src = file.originalDataUrl;
+      thumb.alt = "";
+
+      const body = document.createElement("div");
+      body.className = "mobile-file-body";
+      const title = document.createElement("strong");
+      title.textContent = file.name;
+      title.title = file.name;
+      const meta = document.createElement("span");
+      meta.textContent = `${ExifUtils.formatBytes(file.size)} · ${file.originalExtension.slice(1).toUpperCase()}`;
+      const status = document.createElement("small");
+      const fileStatus = this.getFileStatus(file);
+      status.className = `mobile-file-status ${fileStatus.className}`;
+      status.textContent = fileStatus.label;
+      body.append(title, meta, status);
+
+      const remove = document.createElement("button");
+      remove.className = "mobile-file-remove";
+      remove.type = "button";
+      remove.setAttribute("aria-label", `Видалити ${file.name}`);
+      remove.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12M9 7V5h6v2m-7 0 .8 12h6.4L16 7M10 11v4m4-4v4"/></svg>`;
+      remove.addEventListener("click", (event) => {
+        event.stopPropagation();
+        this.removeFile(index);
+      });
+
+      const openFile = () => this.selectFile(index);
+      card.addEventListener("click", openFile);
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openFile();
+        }
+      });
+      card.append(thumb, body, remove);
+      this.mobileFilesList.appendChild(card);
+    });
+  }
+
+  updateQueueSummary() {
+    const total = this.files.length;
+    this.filesCountBadge.textContent = `${total} ${this.pluralizePhotos(total)}`;
+    this.btnClearList.disabled = total === 0;
+    if (this.mobileQueueCount) {
+      this.mobileQueueCount.textContent = total
+        ? `${total} ${this.pluralizePhotos(total)}`
+        : "Нова сесія";
+    }
+  }
+
+  getFileStatus(file) {
+    if (file.isWipedAll) return { label: "Очищено", className: "is-clean" };
+    if (file.isModified) return { label: "Змінено", className: "is-edited" };
+    if (file.initialStaged.lat !== null || file.initialStaged.make) {
+      return { label: "Є метадані", className: "has-data" };
+    }
+    return { label: "Готово", className: "is-ready" };
+  }
+
+  pluralizePhotos(total) {
+    if (total % 10 === 1 && total % 100 !== 11) return "фото";
+    return "фото";
+  }
+
+  filterQueue(searchValue = "") {
+    const term = searchValue.toLowerCase().trim();
+    this.filesTableBody.querySelectorAll("tr[data-index]").forEach((row) => {
+      const name = row.querySelector(".filename-text")?.textContent.toLowerCase() || "";
+      row.style.display = name.includes(term) ? "" : "none";
+    });
+    this.mobileFilesList?.querySelectorAll("[data-index]").forEach((card) => {
+      const file = this.files[Number(card.dataset.index)];
+      card.hidden = !file?.name.toLowerCase().includes(term);
+    });
   }
 
   selectFile(index) {
@@ -539,11 +686,17 @@ class PhotoMetadataStudio {
     this.editorEmptyPreview.classList.add("hidden");
     this.editorFileName.textContent = file.name;
     this.editorFileWeight.textContent = `${ExifUtils.formatBytes(file.size)} • ${file.width}×${file.height}`;
+    if (this.mobileActiveFile && this.mobileActiveFileName) {
+      this.mobileActiveFile.classList.remove("hidden");
+      this.mobileActiveFileName.textContent = file.name;
+      this.mobileActiveFileName.title = file.name;
+    }
 
     this.populateEditForm();
     this.renderMetadataViewer();
     this.updateExportFormatUI();
     this.exportFileName.value = file.baseName + "_ready";
+    this.exportAuditNotice.classList.add("hidden");
 
     this.renderFilesTable();
   }
@@ -554,19 +707,40 @@ class PhotoMetadataStudio {
       this.clearAll();
     } else {
       this.selectFile(Math.max(0, index - 1));
-      this.filesCountBadge.textContent = `${this.files.length} файлів`;
     }
   }
 
   clearAll() {
     this.files = [];
     this.currentFileIndex = -1;
-    this.filesCountBadge.textContent = "0 файлів";
+    this.updateQueueSummary();
     this.editorPreviewImg.src = "";
     this.editorPreviewImg.classList.add("hidden");
     this.editorEmptyPreview.classList.remove("hidden");
     this.editorFileName.textContent = "—";
     this.editorFileWeight.textContent = "—";
+    this.mobileActiveFile?.classList.add("hidden");
+    if (this.mobileActiveFileName) this.mobileActiveFileName.textContent = "Фото не вибрано";
+    [
+      this.editArtist,
+      this.editCopyright,
+      this.editImageDescription,
+      this.editDateTime,
+      this.editMake,
+      this.editModel,
+      this.editGpsLat,
+      this.editGpsLon,
+      this.exportFileName,
+    ].forEach((field) => {
+      field.value = "";
+    });
+    [this.metaTbodyDate, this.metaTbodyCamera, this.metaTbodyAuthor, this.metaTbodyTech].forEach((tbody) => {
+      tbody.innerHTML = `<tr><td class="empty-cell">Відсутні</td></tr>`;
+    });
+    this.viewGpsBox.classList.add("hidden");
+    this.exportAuditNotice.classList.add("hidden");
+    this.diffOriginalList.innerHTML = "<li>Немає файлу</li>";
+    this.diffModifiedList.innerHTML = "<li>Готово до налаштування</li>";
     this.renderFilesTable();
   }
 
@@ -587,8 +761,15 @@ class PhotoMetadataStudio {
 
     const lat = parseFloat(this.editGpsLat.value);
     const lon = parseFloat(this.editGpsLon.value);
-    file.stagedEdits.lat = isNaN(lat) ? null : lat;
-    file.stagedEdits.lon = isNaN(lon) ? null : lon;
+    const validCoordinates =
+      Number.isFinite(lat) &&
+      Number.isFinite(lon) &&
+      lat >= -90 &&
+      lat <= 90 &&
+      lon >= -180 &&
+      lon <= 180;
+    file.stagedEdits.lat = validCoordinates ? lat : null;
+    file.stagedEdits.lon = validCoordinates ? lon : null;
 
     const fieldsAreEmpty = Object.values(file.stagedEdits).every(
       (value) => value === "" || value === null,
@@ -683,7 +864,10 @@ class PhotoMetadataStudio {
 
   executeCleaningPreset(preset) {
     const file = this.files[this.currentFileIndex];
-    if (!file) return;
+    if (!file) {
+      this.showToast("Спочатку виберіть фотографію", "warning");
+      return;
+    }
 
     if (preset === "all") {
       file.stagedEdits = {
@@ -721,6 +905,8 @@ class PhotoMetadataStudio {
     this.renderMetadataViewer();
     this.renderFilesTable();
     this.updateExportFormatUI();
+    this.renderDiff();
+    this.exportAuditNotice.classList.add("hidden");
   }
 
   updateExportFormatUI() {
@@ -741,9 +927,7 @@ class PhotoMetadataStudio {
   }
 
   async buildTargetDataUrl(file) {
-    const formatChoice = this.selectExportFormat.value;
-    file.exportFormat = formatChoice;
-    file.jpegQuality = parseInt(this.rangeJpegQuality.value, 10) / 100;
+    const formatChoice = file.exportFormat;
 
     let baseJpegDataUrl = null;
     const isSourceJpeg =
@@ -860,9 +1044,13 @@ class PhotoMetadataStudio {
     const finalName =
       (this.exportFileName.value.trim() || file.baseName) + targetExt;
 
-    const savedWithShareSheet = await this.saveForDevice(resultDataUrl, finalName);
+    const saveResult = await this.saveForDevice(resultDataUrl, finalName);
+    if (saveResult.cancelled) {
+      this.showToast("Експорт скасовано", "info");
+      return;
+    }
     this.showToast(
-      savedWithShareSheet
+      saveResult.shared
         ? "Відкрито меню iPhone — виберіть «Зберегти у Файли»"
         : `Експортовано: ${finalName}`,
       "success",
@@ -895,7 +1083,7 @@ class PhotoMetadataStudio {
         : "Відсутні";
 
       this.exportAuditDetails.textContent =
-        `Формат: ${this.selectExportFormat.value.toUpperCase()} • ` +
+        `Формат: ${file.exportFormat.toUpperCase()} • ` +
         `Автор: ${author} • Камера: ${make} • GPS: ${hasGps}`;
     } catch (e) {
       this.exportAuditDetails.textContent =
@@ -918,16 +1106,16 @@ class PhotoMetadataStudio {
     if (isAppleMobile && navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
       try {
         await navigator.share({ files: [file], title: filename });
-        return true;
+        return { shared: true, cancelled: false };
       } catch (error) {
-        if (error?.name === "AbortError") return true;
+        if (error?.name === "AbortError") return { shared: false, cancelled: true };
       }
     }
 
     const objectUrl = URL.createObjectURL(blob);
     this.triggerDownload(objectUrl, filename);
     setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
-    return false;
+    return { shared: false, cancelled: false };
   }
 
   triggerDownload(url, filename) {
@@ -973,15 +1161,15 @@ class PhotoMetadataStudio {
     addDiff(
       "Формат",
       file.originalExtension.toUpperCase(),
-      this.selectExportFormat.value.toUpperCase(),
+      file.exportFormat.toUpperCase(),
     );
     addDiff("Автор", orig.artist, cur.artist);
     addDiff("Камера", orig.model, cur.model);
     addDiff("Дата", orig.dateTime, cur.dateTime);
     addDiff(
       "GPS",
-      orig.lat ? `${orig.lat}, ${orig.lon}` : null,
-      cur.lat ? `${cur.lat}, ${cur.lon}` : null,
+      orig.lat !== null && orig.lon !== null ? `${orig.lat}, ${orig.lon}` : null,
+      cur.lat !== null && cur.lon !== null ? `${cur.lat}, ${cur.lon}` : null,
     );
   }
 
@@ -992,7 +1180,7 @@ class PhotoMetadataStudio {
   getOutputExtension(file) {
     const isSourceJpeg = /\.jpe?g$/i.test(file.name);
     if (
-      this.selectExportFormat.value === "jpeg" ||
+      file.exportFormat === "jpeg" ||
       (!isSourceJpeg && (file.isModified || file.isWipedAll))
     ) {
       return ".jpg";
